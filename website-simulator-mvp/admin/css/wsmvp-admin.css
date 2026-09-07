@@ -1,381 +1,313 @@
 /**
- * Admin Styles for Website Simulator MVP
+ * Admin Styles
  * 
- * @package WSMVP
+ * @package Website_Simulator_MVP
  */
 
-/* General Admin Styles */
-.wsmvp-dashboard .wp-heading-inline {
-    margin-right: 10px;
+.wsmvp-admin-wrap {
+    max-width: 1200px;
+    padding: 20px;
 }
 
-/* Stats Cards */
+/* Stats Grid */
 .wsmvp-stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
-    margin: 20px 0;
+    margin-bottom: 30px;
 }
 
 .wsmvp-stat-card {
     background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 8px;
     padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-    font-size: 40px;
-    color: #2271b1;
-}
-
-.stat-content h3 {
-    margin: 0;
-    font-size: 28px;
-    color: #1d2327;
-}
-
-.stat-content p {
-    margin: 5px 0 0;
-    color: #646970;
-    font-size: 14px;
-}
-
-/* Dashboard Panels */
-.wsmvp-dashboard-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 20px;
-    margin-top: 20px;
-}
-
-.wsmvp-dashboard-panel {
-    background: #fff;
-    border: 1px solid #c3c4c7;
     border-radius: 8px;
-    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    text-align: center;
 }
 
-.wsmvp-dashboard-panel h2 {
-    margin-top: 0;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #c3c4c7;
-    font-size: 16px;
+.wsmvp-stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1e293b;
 }
 
-/* Status Badges */
-.wsmvp-status-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
+.wsmvp-stat-label {
+    color: #64748b;
+    margin-top: 5px;
 }
 
-.status-new { background: #dbeafe; color: #1e40af; }
-.status-contacted { background: #fef3c7; color: #92400e; }
-.status-proposal { background: #ddd6fe; color: #6b21a8; }
-.status-converted { background: #d1fae5; color: #065f46; }
-.status-archived { background: #f3f4f6; color: #374151; }
-
-/* Category Badges */
-.wsmvp-category-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
+.wsmvp-stat-new .wsmvp-stat-value {
+    color: #22c55e;
 }
 
-.category-basic { background: #dbeafe; color: #1e40af; }
-.category-intermediate { background: #fef3c7; color: #92400e; }
-.category-advanced { background: #ddd6fe; color: #6b21a8; }
-.category-custom { background: #fecaca; color: #991b1b; }
-
-/* Shortcode Box */
-.wsmvp-shortcode-box {
-    background: #f0f0f1;
-    padding: 15px;
-    border-radius: 4px;
-    margin-top: 15px;
+.wsmvp-stat-converted .wsmvp-stat-value {
+    color: #3b82f6;
 }
 
-.wsmvp-shortcode-box code {
-    display: block;
-    margin-top: 10px;
-    font-size: 14px;
-    padding: 10px;
+/* Dashboard Section */
+.wsmvp-dashboard-section {
     background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-}
-
-/* Quick Actions */
-.wsmvp-quick-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     margin-bottom: 20px;
 }
 
-.wsmvp-quick-actions .button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    justify-content: center;
+.wsmvp-dashboard-section h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
 }
 
-/* Plugin Status */
-.wsmvp-plugin-status {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #f0f0f1;
+/* Table */
+.wsmvp-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
 }
 
-.wsmvp-plugin-status p {
-    margin: 10px 0;
-    font-size: 14px;
+.wsmvp-table th,
+.wsmvp-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
 }
 
-.wsmvp-status-indicator {
+.wsmvp-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+}
+
+.wsmvp-table tr:hover {
+    background: #f8fafc;
+}
+
+/* Badges */
+.wsmvp-badge {
     display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #4ade80;
-    margin-right: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
 }
+
+.wsmvp-badge-basic { background: #dbeafe; color: #1d4ed8; }
+.wsmvp-badge-intermediate { background: #fef3c7; color: #b45309; }
+.wsmvp-badge-advanced { background: #fed7aa; color: #c2410c; }
+.wsmvp-badge-custom { background: #e0e7ff; color: #4338ca; }
+
+.wsmvp-badge-status-new { background: #dbeafe; color: #1d4ed8; }
+.wsmvp-badge-status-contacted { background: #fef3c7; color: #b45309; }
+.wsmvp-badge-status-proposal_sent { background: #ddd6fe; color: #6d28d9; }
+.wsmvp-badge-status-converted { background: #bbf7d0; color: #15803d; }
+.wsmvp-badge-status-archived { background: #f1f5f9; color: #475569; }
 
 /* Filters */
 .wsmvp-filters {
     background: #fff;
     padding: 15px;
-    margin: 20px 0;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-}
-
-.wsmvp-filter-row {
+    border-radius: 8px;
+    margin-bottom: 20px;
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     align-items: center;
 }
 
-.wsmvp-filter-row input[type="text"],
-.wsmvp-filter-row input[type="date"],
-.wsmvp-filter-row select {
-    min-width: 150px;
+.wsmvp-filters select,
+.wsmvp-filters input {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+/* Pagination */
+.wsmvp-pagination {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.wsmvp-pagination .button {
+    margin: 0 3px;
+}
+
+/* Empty State */
+.wsmvp-empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #64748b;
+}
+
+/* Questions List */
+.wsmvp-questions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.wsmvp-question-card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.wsmvp-question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.wsmvp-question-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.wsmvp-question-desc {
+    color: #64748b;
+    margin-bottom: 15px;
+}
+
+.wsmvp-question-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 15px;
+}
+
+.wsmvp-question-options ul {
+    margin: 10px 0 0 20px;
+}
+
+.wsmvp-option-value {
+    color: #16a34a;
+    font-size: 0.875rem;
+}
+
+/* Pricing Sections */
+.wsmvp-pricing-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+}
+
+.wsmvp-pricing-section {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.wsmvp-pricing-section h2 {
+    margin-top: 0;
+    font-size: 1rem;
+}
+
+/* Buttons */
+.wsmvp-btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 5px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.wsmvp-btn-icon:hover {
+    opacity: 1;
 }
 
 /* Modal */
 .wsmvp-modal {
     position: fixed;
-    z-index: 999999;
-    left: 0;
     top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.5);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
 }
 
 .wsmvp-modal-content {
-    background-color: #fefefe;
-    margin: 5% auto;
+    background: #fff;
     padding: 30px;
-    border: 1px solid #888;
+    border-radius: 12px;
+    max-width: 600px;
     width: 90%;
-    max-width: 700px;
-    border-radius: 8px;
+    max-height: 80vh;
+    overflow-y: auto;
     position: relative;
 }
 
 .wsmvp-modal-close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+}
+
+/* Settings Form */
+.form-table th {
+    padding: 15px 10px 15px 0;
+    width: 200px;
+}
+
+.form-table td {
+    padding: 15px 0;
+}
+
+.form-table input[type="text"],
+.form-table input[type="email"],
+.form-table input[type="number"],
+.form-table textarea {
+    width: 100%;
+    max-width: 400px;
+}
+
+.form-table input[type="color"] {
+    width: 60px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
     cursor: pointer;
 }
 
-.wsmvp-modal-close:hover {
-    color: #000;
-}
-
-/* Detail Rows */
-.wsmvp-detail-row {
-    display: flex;
-    margin-bottom: 15px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #f0f0f1;
-}
-
-.wsmvp-detail-label {
-    font-weight: 600;
-    width: 150px;
-    color: #646970;
-}
-
-.wsmvp-detail-value {
-    flex: 1;
-    color: #1d2327;
-}
-
-/* Settings Page */
-.wsmvp-settings .form-table th {
-    width: 200px;
-    font-weight: 600;
-}
-
-.wsmvp-settings .wp-picker-container {
-    margin-top: 10px;
-}
-
-/* Questions Page */
-.wsmvp-questions-list {
-    margin-top: 20px;
-}
-
-.wsmvp-question-card {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 15px;
-}
-
-.wsmvp-question-header {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.wsmvp-question-order {
-    font-size: 20px;
-    font-weight: bold;
-    color: #2271b1;
-    min-width: 30px;
-}
-
-.wsmvp-question-info {
-    flex: 1;
-}
-
-.wsmvp-question-info h3 {
-    margin: 0 0 10px;
-    font-size: 16px;
-}
-
-.wsmvp-question-type-badge,
-.wsmvp-required-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    margin-right: 5px;
-}
-
-.type-select { background: #dbeafe; color: #1e40af; }
-.type-radio { background: #fef3c7; color: #92400e; }
-.type-checkbox { background: #d1fae5; color: #065f46; }
-.type-text { background: #f3f4f6; color: #374151; }
-
-.wsmvp-required-badge {
-    background: #fecaca;
-    color: #991b1b;
-}
-
-/* Pricing Page */
-.wsmvp-pricing-section {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    border-radius: 8px;
-    padding: 20px;
-    margin-top: 30px;
-}
-
-.wsmvp-pricing-section h2 {
-    margin-top: 0;
-    padding-bottom: 15px;
-    border-bottom: 2px solid #2271b1;
-}
-
-.wsmvp-rule-type {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.type-base { background: #dbeafe; color: #1e40af; }
-.type-additional { background: #d1fae5; color: #065f46; }
-.type-multiplier { background: #fef3c7; color: #92400e; }
-.type-percentage { background: #ddd6fe; color: #6b21a8; }
-
-.wsmvp-status-active {
-    display: inline-block;
-    padding: 4px 8px;
-    background: #4ade80;
-    color: #065f46;
-    border-radius: 3px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.wsmvp-status-inactive {
-    display: inline-block;
-    padding: 4px 8px;
-    background: #f3f4f6;
-    color: #374151;
-    border-radius: 3px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.wsmvp-code-example {
-    background: #1e1e1e;
-    border-radius: 6px;
-    padding: 15px;
-    overflow-x: auto;
-    margin-top: 15px;
-}
-
-.wsmvp-code-example pre {
-    margin: 0;
-    color: #d4d4d4;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 13px;
-    line-height: 1.5;
+.wsmvp-save-status {
+    margin-left: 15px;
+    color: #16a34a;
 }
 
 /* Responsive */
 @media (max-width: 782px) {
-    .wsmvp-dashboard-grid {
-        grid-template-columns: 1fr;
-    }
-    
     .wsmvp-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .wsmvp-pricing-sections {
         grid-template-columns: 1fr;
     }
     
-    .wsmvp-filter-row {
+    .wsmvp-filters {
         flex-direction: column;
+        align-items: stretch;
     }
     
-    .wsmvp-filter-row input[type="text"],
-    .wsmvp-filter-row input[type="date"],
-    .wsmvp-filter-row select {
-        width: 100%;
+    .wsmvp-table {
+        font-size: 0.875rem;
+    }
+    
+    .wsmvp-table th,
+    .wsmvp-table td {
+        padding: 8px;
     }
 }

@@ -25,121 +25,140 @@ define('WSMVP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WSMVP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WSMVP_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
-// Check PHP version
-if (version_compare(PHP_VERSION, '8.1', '<')) {
-    add_action('admin_notices', function() {
-        echo '<div class="notice notice-error"><p>' . 
-            esc_html__('Website Simulator MVP requires PHP 8.1 or higher.', 'website-simulator-mvp') . 
-            '</p></div>';
-    });
-    return;
-}
+/**
+ * Main plugin class
+ */
+final class Website_Simulator_MVP {
 
-// Autoloader for plugin classes
-spl_autoload_register(function($class) {
-    $prefix = 'WSMVP_';
-    $base_dir = WSMVP_PLUGIN_DIR . 'includes/';
-    
-    $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) {
-        return;
-    }
-    
-    $relative_class = substr($class, $len);
-    $file = $base_dir . 'class-' . strtolower(str_replace('_', '-', $relative_class)) . '.php';
-    
-    if (file_exists($file)) {
-        require $file;
-    }
-});
-
-// Main plugin class
-class Website_Simulator_MVP {
-    
+    /**
+     * Single instance of the class
+     */
     private static $instance = null;
-    private $loader;
-    private $admin;
-    private $frontend;
-    private $settings;
-    private $pricing;
-    private $database;
-    
+
+    /**
+     * Get instance
+     */
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
         }
         return self::$instance;
     }
-    
+
+    /**
+     * Constructor
+     */
     private function __construct() {
-        $this->init_components();
-        $this->load_textdomain();
-        $this->register_hooks();
+        $this->init_hooks();
     }
-    
-    private function init_components() {
-        $this->database = new WSMVP_Database();
-        $this->loader = new WSMVP_Loader();
-        $this->settings = new WSMVP_Settings();
-        $this->pricing = new WSMVP_Pricing();
-        $this->admin = new WSMVP_Admin();
-        $this->frontend = new WSMVP_Frontend();
+
+    /**
+     * Initialize hooks
+     */
+    private function init_hooks() {
+        register_activation_hook(__FILE__, array($this, 'activate'));
+        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
+        register_uninstall_hook(__FILE__, array('Website_Simulator_MVP_Uninstall', 'uninstall'));
+
+        add_action('plugins_loaded', array($this, 'load_textdomain'));
+        add_action('init', array($this, 'load_classes'));
+        add_action('init', array($this, 'register_shortcodes'));
     }
-    
-    private function load_textdomain() {
+
+    /**
+     * Load text domain
+     */
+    public function load_textdomain() {
         load_plugin_textdomain(
             'website-simulator-mvp',
             false,
             dirname(WSMVP_PLUGIN_BASENAME) . '/languages'
         );
     }
-    
-    private function register_hooks() {
-        register_activation_hook(__FILE__, array($this, 'activate'));
-        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
-        register_uninstall_hook(__FILE__, array('Website_Simulator_MVP', 'uninstall'));
+
+    /**
+     * Load plugin classes
+     */
+    public function load_classes() {
+        // Database handler
+        require_once WSMVP_PLUGIN_DIR . 'includes/class-wsmvp-database.php';
+        
+        // Settings handler
+        require_once WSMVP_PLUGIN_DIR . 'includes/class-wsmvp-settings.php';
+        
+        // Pricing calculator
+        require_once WSMVP_PLUGIN_DIR . 'includes/class-wsmvp-pricing.php';
+        
+        // Admin handler
+        require_once WSMVP_PLUGIN_DIR . 'includes/class-wsmvp-admin.php';
+        
+        // Frontend handler
+        require_once WSMVP_PLUGIN_DIR . 'includes/class-wsmvp-frontend.php';
+
+        // Initialize database
+        WSMVP_Database::get_instance();
+
+        // Initialize admin
+        if (is_admin()) {
+            WSMVP_Admin::get_instance();
+        }
+
+        // Initialize frontend
+        WSMVP_Frontend::get_instance();
     }
-    
+
+    /**
+     * Register shortcodes
+     */
+    public function register_shortcodes() {
+        add_shortcode('website_simulator', array('WSMVP_Frontend', 'render_simulator'));
+    }
+
+    /**
+     * Activation hook
+     */
     public function activate() {
         // Create database tables
-        $this->database->create_tables();
+        WSMVP_Database::create_tables();
         
         // Set default options
-        $this->settings->set_defaults();
+        WSMVP_Settings::set_defaults();
         
         // Flush rewrite rules
         flush_rewrite_rules();
-        
-        // Set activation timestamp
-        update_option('wsmvp_activated', time());
     }
-    
+
+    /**
+     * Deactivation hook
+     */
     public function deactivate() {
-        // Clear any scheduled events
-        wp_clear_scheduled_hook('wsmvp_cleanup_old_leads');
-        
-        // Flush rewrite rules
         flush_rewrite_rules();
     }
-    
+}
+
+/**
+ * Uninstall handler class
+ */
+class Website_Simulator_MVP_Uninstall {
     public static function uninstall() {
-        // Only remove data if explicitly allowed
-        if (get_option('wsmvp_remove_data_on_uninstall', false)) {
+        if (!current_user_can('activate_plugins')) {
+            return;
+        }
+
+        // Check if user wants to delete data
+        $delete_data = get_option('wsmvp_delete_data_on_uninstall', false);
+        
+        if ($delete_data) {
+            // Drop tables
             global $wpdb;
-            
-            // Drop custom tables
             $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wsmvp_simulations");
-            $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wsmvp_questions");
-            $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wsmvp_pricing_rules");
             
-            // Remove all options
+            // Delete options
             delete_option('wsmvp_version');
-            delete_option('wsmvp_db_version');
             delete_option('wsmvp_settings');
             delete_option('wsmvp_questions');
             delete_option('wsmvp_pricing_rules');
-            delete_option('wsmvp_activated');
-            delete_option('wsmvp_remove_data_on_uninstall');
+            delete_option('wsmvp_delete_data_on_uninstall');
         }
     }
 }
@@ -148,6 +167,4 @@ class Website_Simulator_MVP {
 function wsmvp_init() {
     return Website_Simulator_MVP::get_instance();
 }
-
-// Start the plugin
 wsmvp_init();

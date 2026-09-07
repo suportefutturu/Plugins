@@ -1,743 +1,320 @@
 <?php
 /**
- * Settings handler for Website Simulator MVP
+ * Settings handler class
  * 
- * Manages plugin settings and default values
+ * Handles plugin settings, default questions and pricing rules
  * 
- * @package WSMVP
+ * @package Website_Simulator_MVP
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class WSMVP_Settings {
-    
-    private $option_name = 'wsmvp_settings';
-    private $questions_option = 'wsmvp_questions';
-    private $pricing_option = 'wsmvp_pricing_rules';
-    
-    public function __construct() {
-        add_action('admin_init', array($this, 'register_settings'));
+final class WSMVP_Settings {
+
+    private static $instance = null;
+    private $settings_key = 'wsmvp_settings';
+    private $questions_key = 'wsmvp_questions';
+    private $pricing_key = 'wsmvp_pricing_rules';
+
+    public static function get_instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
     }
-    
+
     /**
      * Set default options on activation
      */
-    public function set_defaults() {
-        $defaults = $this->get_default_settings();
-        
-        if (false === get_option($this->option_name)) {
-            add_option($this->option_name, $defaults);
+    public static function set_defaults() {
+        // Check if already set
+        if (get_option('wsmvp_version')) {
+            return;
         }
-        
-        // Set default questions
-        if (false === get_option($this->questions_option)) {
-            add_option($this->questions_option, $this->get_default_questions());
-        }
-        
-        // Set default pricing rules
-        if (false === get_option($this->pricing_option)) {
-            add_option($this->pricing_option, $this->get_default_pricing_rules());
-        }
-    }
-    
-    /**
-     * Register settings
-     */
-    public function register_settings() {
-        register_setting('wsmvp_settings_group', $this->option_name, array(
-            'sanitize_callback' => array($this, 'sanitize_settings')
-        ));
-    }
-    
-    /**
-     * Get current settings
-     */
-    public function get_settings() {
-        return get_option($this->option_name, $this->get_default_settings());
-    }
-    
-    /**
-     * Update settings
-     */
-    public function update_settings($settings) {
-        return update_option($this->option_name, $settings);
-    }
-    
-    /**
-     * Get questions
-     */
-    public function get_questions() {
-        return get_option($this->questions_option, $this->get_default_questions());
-    }
-    
-    /**
-     * Update questions
-     */
-    public function update_questions($questions) {
-        return update_option($this->questions_option, $questions);
-    }
-    
-    /**
-     * Get pricing rules
-     */
-    public function get_pricing_rules() {
-        return get_option($this->pricing_option, $this->get_default_pricing_rules());
-    }
-    
-    /**
-     * Update pricing rules
-     */
-    public function update_pricing_rules($rules) {
-        return update_option($this->pricing_option, $rules);
-    }
-    
-    /**
-     * Sanitize settings
-     */
-    public function sanitize_settings($input) {
-        $sanitized = array();
-        
-        $sanitized['company_name'] = sanitize_text_field($input['company_name'] ?? '');
-        $sanitized['logo_url'] = esc_url_raw($input['logo_url'] ?? '');
-        $sanitized['primary_color'] = sanitize_hex_color($input['primary_color'] ?? '#3b82f6');
-        $sanitized['secondary_color'] = sanitize_hex_color($input['secondary_color'] ?? '#1e40af');
-        $sanitized['currency'] = sanitize_text_field($input['currency'] ?? 'BRL');
-        $sanitized['currency_symbol'] = sanitize_text_field($input['currency_symbol'] ?? 'R$');
-        $sanitized['min_project_value'] = floatval($input['min_project_value'] ?? 500);
-        $sanitized['intro_text'] = sanitize_textarea_field($input['intro_text'] ?? '');
-        $sanitized['contact_button_text'] = sanitize_text_field($input['contact_button_text'] ?? __('Get Quote', 'website-simulator-mvp'));
-        $sanitized['lead_email'] = sanitize_email($input['lead_email'] ?? get_option('admin_email'));
-        $sanitized['whatsapp_number'] = sanitize_text_field($input['whatsapp_number'] ?? '');
-        $sanitized['default_deadline'] = intval($input['default_deadline'] ?? 30);
-        $sanitized['terms_of_use'] = wp_kses_post($input['terms_of_use'] ?? '');
-        $sanitized['privacy_notice'] = wp_kses_post($input['privacy_notice'] ?? '');
-        $sanitized['enable_pdf'] = !empty($input['enable_pdf']);
-        $sanitized['enable_email_capture'] = !empty($input['enable_email_capture']);
-        $sanitized['show_public_price'] = !empty($input['show_public_price']);
-        $sanitized['price_margin_min'] = floatval($input['price_margin_min'] ?? 0.1);
-        $sanitized['price_margin_max'] = floatval($input['price_margin_max'] ?? 0.3);
-        $sanitized['round_prices'] = !empty($input['round_prices']);
-        
-        return $sanitized;
-    }
-    
-    /**
-     * Get default settings
-     */
-    private function get_default_settings() {
-        return array(
+
+        // Default settings
+        $defaults = array(
             'company_name' => get_bloginfo('name'),
-            'logo_url' => '',
-            'primary_color' => '#3b82f6',
+            'company_logo' => '',
+            'primary_color' => '#2563eb',
             'secondary_color' => '#1e40af',
+            'button_color' => '#16a34a',
             'currency' => 'BRL',
             'currency_symbol' => 'R$',
             'min_project_value' => 500,
-            'intro_text' => __('Discover the perfect solution for your online presence. Answer a few questions and get an instant estimate for your website project.', 'website-simulator-mvp'),
-            'contact_button_text' => __('Get Quote', 'website-simulator-mvp'),
-            'lead_email' => get_option('admin_email'),
+            'intro_text' => __('Descubra o site perfeito para o seu negócio! Responda algumas perguntas e receba uma estimativa personalizada.', 'website-simulator-mvp'),
+            'contact_button_text' => __('Solicitar Orçamento', 'website-simulator-mvp'),
+            'admin_email' => get_option('admin_email'),
             'whatsapp_number' => '',
             'default_deadline' => 30,
-            'terms_of_use' => '',
-            'privacy_notice' => '',
+            'terms_text' => __('Ao enviar este formulário, você concorda com nossos termos de uso e política de privacidade.', 'website-simulator-mvp'),
+            'privacy_notice' => __('Seus dados estão seguros. Não compartilhamos suas informações com terceiros.', 'website-simulator-mvp'),
             'enable_pdf' => true,
             'enable_email_capture' => true,
             'show_public_price' => true,
-            'price_margin_min' => 0.1,
-            'price_margin_max' => 0.3,
-            'round_prices' => true,
-            'remove_data_on_uninstall' => false
+            'price_margin_min' => 0.9,
+            'price_margin_max' => 1.2,
         );
+        update_option('wsmvp_settings', $defaults);
+
+        // Default questions
+        $questions = self::get_default_questions();
+        update_option('wsmvp_questions', $questions);
+
+        // Default pricing rules
+        $pricing = self::get_default_pricing_rules();
+        update_option('wsmvp_pricing_rules', $pricing);
+
+        // Set version
+        update_option('wsmvp_version', WSMVP_VERSION);
     }
-    
+
     /**
      * Get default questions
      */
-    private function get_default_questions() {
+    public static function get_default_questions() {
         return array(
             array(
                 'id' => 'objective',
-                'title' => __('What is the main objective of your website?', 'website-simulator-mvp'),
+                'title' => __('Qual é o objetivo principal do seu site?', 'website-simulator-mvp'),
                 'description' => '',
                 'type' => 'select',
                 'required' => true,
                 'order' => 1,
-                'step' => 1,
+                'active' => true,
                 'options' => array(
-                    array('value' => 'present_company', 'label' => __('Present a company', 'website-simulator-mvp')),
-                    array('value' => 'generate_leads', 'label' => __('Generate contacts', 'website-simulator-mvp')),
-                    array('value' => 'sell_products', 'label' => __('Sell products', 'website-simulator-mvp')),
-                    array('value' => 'promote_services', 'label' => __('Promote services', 'website-simulator-mvp')),
-                    array('value' => 'create_blog', 'label' => __('Create a blog', 'website-simulator-mvp')),
-                    array('value' => 'landing_page', 'label' => __('Create a landing page', 'website-simulator-mvp'))
-                )
+                    array('value' => 'present_company', 'text' => __('Apresentar uma empresa', 'website-simulator-mvp'), 'value_add' => 0),
+                    array('value' => 'generate_leads', 'text' => __('Gerar contatos', 'website-simulator-mvp'), 'value_add' => 200),
+                    array('value' => 'sell_products', 'text' => __('Vender produtos', 'website-simulator-mvp'), 'value_add' => 1500),
+                    array('value' => 'promote_services', 'text' => __('Divulgar serviços', 'website-simulator-mvp'), 'value_add' => 300),
+                    array('value' => 'create_blog', 'text' => __('Criar um blog', 'website-simulator-mvp'), 'value_add' => 400),
+                    array('value' => 'landing_page', 'text' => __('Criar uma landing page', 'website-simulator-mvp'), 'value_add' => -500),
+                ),
             ),
             array(
                 'id' => 'site_type',
-                'title' => __('What type of website do you need?', 'website-simulator-mvp'),
+                'title' => __('Que tipo de site você precisa?', 'website-simulator-mvp'),
                 'description' => '',
                 'type' => 'select',
                 'required' => true,
                 'order' => 2,
-                'step' => 2,
+                'active' => true,
                 'options' => array(
-                    array('value' => 'institutional', 'label' => __('Institutional website', 'website-simulator-mvp')),
-                    array('value' => 'landing_page', 'label' => __('Landing page', 'website-simulator-mvp')),
-                    array('value' => 'ecommerce', 'label' => __('Online store', 'website-simulator-mvp')),
-                    array('value' => 'blog', 'label' => __('Blog', 'website-simulator-mvp')),
-                    array('value' => 'portfolio', 'label' => __('Portfolio', 'website-simulator-mvp')),
-                    array('value' => 'membership', 'label' => __('Membership area', 'website-simulator-mvp'))
-                )
+                    array('value' => 'institutional', 'text' => __('Site institucional', 'website-simulator-mvp'), 'base_value' => 1500),
+                    array('value' => 'landing_page', 'text' => __('Landing page', 'website-simulator-mvp'), 'base_value' => 900),
+                    array('value' => 'ecommerce', 'text' => __('Loja virtual', 'website-simulator-mvp'), 'base_value' => 3500),
+                    array('value' => 'blog', 'text' => __('Blog', 'website-simulator-mvp'), 'base_value' => 1200),
+                    array('value' => 'portfolio', 'text' => __('Portfólio', 'website-simulator-mvp'), 'base_value' => 1000),
+                    array('value' => 'membership', 'text' => __('Área de membros', 'website-simulator-mvp'), 'base_value' => 2500),
+                ),
             ),
             array(
                 'id' => 'pages',
-                'title' => __('Which pages do you want to include?', 'website-simulator-mvp'),
-                'description' => __('Select all that apply', 'website-simulator-mvp'),
+                'title' => __('Quais páginas deseja incluir?', 'website-simulator-mvp'),
+                'description' => __('Selecione todas as páginas que você precisa.', 'website-simulator-mvp'),
                 'type' => 'checkbox',
                 'required' => true,
                 'order' => 3,
-                'step' => 3,
+                'active' => true,
                 'options' => array(
-                    array('value' => 'home', 'label' => __('Home page', 'website-simulator-mvp')),
-                    array('value' => 'about', 'label' => __('About', 'website-simulator-mvp')),
-                    array('value' => 'services', 'label' => __('Services', 'website-simulator-mvp')),
-                    array('value' => 'products', 'label' => __('Products', 'website-simulator-mvp')),
-                    array('value' => 'blog', 'label' => __('Blog', 'website-simulator-mvp')),
-                    array('value' => 'portfolio', 'label' => __('Portfolio', 'website-simulator-mvp')),
-                    array('value' => 'testimonials', 'label' => __('Testimonials', 'website-simulator-mvp')),
-                    array('value' => 'faq', 'label' => __('FAQ', 'website-simulator-mvp')),
-                    array('value' => 'contact', 'label' => __('Contact', 'website-simulator-mvp')),
-                    array('value' => 'privacy', 'label' => __('Privacy policy', 'website-simulator-mvp'))
-                )
+                    array('value' => 'home', 'text' => __('Página inicial', 'website-simulator-mvp'), 'value_add' => 0),
+                    array('value' => 'about', 'text' => __('Sobre', 'website-simulator-mvp'), 'value_add' => 150),
+                    array('value' => 'services', 'text' => __('Serviços', 'website-simulator-mvp'), 'value_add' => 200),
+                    array('value' => 'products', 'text' => __('Produtos', 'website-simulator-mvp'), 'value_add' => 250),
+                    array('value' => 'blog', 'text' => __('Blog', 'website-simulator-mvp'), 'value_add' => 300),
+                    array('value' => 'portfolio', 'text' => __('Portfólio', 'website-simulator-mvp'), 'value_add' => 200),
+                    array('value' => 'testimonials', 'text' => __('Depoimentos', 'website-simulator-mvp'), 'value_add' => 150),
+                    array('value' => 'faq', 'text' => __('FAQ', 'website-simulator-mvp'), 'value_add' => 100),
+                    array('value' => 'contact', 'text' => __('Contato', 'website-simulator-mvp'), 'value_add' => 100),
+                    array('value' => 'privacy', 'text' => __('Política de privacidade', 'website-simulator-mvp'), 'value_add' => 80),
+                ),
             ),
             array(
                 'id' => 'features',
-                'title' => __('Which features do you want?', 'website-simulator-mvp'),
-                'description' => __('Select all that apply', 'website-simulator-mvp'),
+                'title' => __('Quais funcionalidades deseja?', 'website-simulator-mvp'),
+                'description' => __('Selecione os recursos que você precisa.', 'website-simulator-mvp'),
                 'type' => 'checkbox',
                 'required' => false,
                 'order' => 4,
-                'step' => 4,
+                'active' => true,
                 'options' => array(
-                    array('value' => 'contact_form', 'label' => __('Contact form', 'website-simulator-mvp')),
-                    array('value' => 'whatsapp_button', 'label' => __('WhatsApp button', 'website-simulator-mvp')),
-                    array('value' => 'instagram_integration', 'label' => __('Instagram integration', 'website-simulator-mvp')),
-                    array('value' => 'google_maps', 'label' => __('Google Maps', 'website-simulator-mvp')),
-                    array('value' => 'blog_module', 'label' => __('Blog', 'website-simulator-mvp')),
-                    array('value' => 'newsletter', 'label' => __('Newsletter', 'website-simulator-mvp')),
-                    array('value' => 'scheduling', 'label' => __('Scheduling', 'website-simulator-mvp')),
-                    array('value' => 'membership_area', 'label' => __('Membership area', 'website-simulator-mvp')),
-                    array('value' => 'online_payment', 'label' => __('Online payment', 'website-simulator-mvp')),
-                    array('value' => 'crm_integration', 'label' => __('CRM integration', 'website-simulator-mvp')),
-                    array('value' => 'basic_seo', 'label' => __('Basic SEO', 'website-simulator-mvp')),
-                    array('value' => 'mobile_optimization', 'label' => __('Mobile optimization', 'website-simulator-mvp'))
-                )
+                    array('value' => 'contact_form', 'text' => __('Formulário de contato', 'website-simulator-mvp'), 'value_add' => 150),
+                    array('value' => 'whatsapp_button', 'text' => __('Botão de WhatsApp', 'website-simulator-mvp'), 'value_add' => 100),
+                    array('value' => 'instagram_integration', 'text' => __('Integração com Instagram', 'website-simulator-mvp'), 'value_add' => 200),
+                    array('value' => 'google_maps', 'text' => __('Google Maps', 'website-simulator-mvp'), 'value_add' => 100),
+                    array('value' => 'blog_module', 'text' => __('Blog', 'website-simulator-mvp'), 'value_add' => 400),
+                    array('value' => 'newsletter', 'text' => __('Newsletter', 'website-simulator-mvp'), 'value_add' => 250),
+                    array('value' => 'scheduling', 'text' => __('Agendamento', 'website-simulator-mvp'), 'value_add' => 500),
+                    array('value' => 'membership_area', 'text' => __('Área de membros', 'website-simulator-mvp'), 'value_add' => 2000),
+                    array('value' => 'online_payment', 'text' => __('Pagamento online', 'website-simulator-mvp'), 'value_add' => 800),
+                    array('value' => 'crm_integration', 'text' => __('Integração com CRM', 'website-simulator-mvp'), 'value_add' => 600),
+                    array('value' => 'seo_basic', 'text' => __('SEO básico', 'website-simulator-mvp'), 'value_add' => 300),
+                    array('value' => 'mobile_optimization', 'text' => __('Otimização para celular', 'website-simulator-mvp'), 'value_add' => 200),
+                ),
             ),
             array(
-                'id' => 'visual_customization',
-                'title' => __('What level of visual customization do you want?', 'website-simulator-mvp'),
+                'id' => 'visual_level',
+                'title' => __('Qual nível de personalização visual deseja?', 'website-simulator-mvp'),
                 'description' => '',
                 'type' => 'radio',
                 'required' => true,
                 'order' => 5,
-                'step' => 5,
+                'active' => true,
                 'options' => array(
-                    array('value' => 'basic_template', 'label' => __('Basic template', 'website-simulator-mvp')),
-                    array('value' => 'colors_texts', 'label' => __('Colors and texts customization', 'website-simulator-mvp')),
-                    array('value' => 'custom_design', 'label' => __('Custom design', 'website-simulator-mvp')),
-                    array('value' => 'fully_custom', 'label' => __('Fully custom design', 'website-simulator-mvp'))
-                )
+                    array('value' => 'basic', 'text' => __('Modelo básico', 'website-simulator-mvp'), 'value_add' => 0),
+                    array('value' => 'colors_texts', 'text' => __('Personalização de cores e textos', 'website-simulator-mvp'), 'value_add' => 300),
+                    array('value' => 'custom_design', 'text' => __('Design personalizado', 'website-simulator-mvp'), 'value_add' => 1200),
+                    array('value' => 'fully_custom', 'text' => __('Design totalmente sob medida', 'website-simulator-mvp'), 'value_add' => 2500),
+                ),
             ),
             array(
                 'id' => 'content_status',
-                'title' => __('Do you already have the content?', 'website-simulator-mvp'),
+                'title' => __('Você já possui os conteúdos?', 'website-simulator-mvp'),
                 'description' => '',
                 'type' => 'radio',
                 'required' => true,
                 'order' => 6,
-                'step' => 6,
+                'active' => true,
                 'options' => array(
-                    array('value' => 'have_all', 'label' => __('Yes, I have everything', 'website-simulator-mvp')),
-                    array('value' => 'have_partial', 'label' => __('I have part of the content', 'website-simulator-mvp')),
-                    array('value' => 'need_texts', 'label' => __('I need help with texts', 'website-simulator-mvp')),
-                    array('value' => 'need_everything', 'label' => __('I need texts and images', 'website-simulator-mvp'))
-                )
+                    array('value' => 'have_all', 'text' => __('Sim, já tenho tudo', 'website-simulator-mvp'), 'value_add' => 0),
+                    array('value' => 'have_partial', 'text' => __('Tenho parte do conteúdo', 'website-simulator-mvp'), 'value_add' => 300),
+                    array('value' => 'need_texts', 'text' => __('Preciso de ajuda com textos', 'website-simulator-mvp'), 'value_add' => 600),
+                    array('value' => 'need_everything', 'text' => __('Preciso de textos e imagens', 'website-simulator-mvp'), 'value_add' => 1200),
+                ),
             ),
             array(
                 'id' => 'deadline',
-                'title' => __('What is your desired deadline?', 'website-simulator-mvp'),
+                'title' => __('Qual é o prazo desejado?', 'website-simulator-mvp'),
                 'description' => '',
                 'type' => 'radio',
                 'required' => true,
                 'order' => 7,
-                'step' => 6,
+                'active' => true,
                 'options' => array(
-                    array('value' => 'no_urgency', 'label' => __('No urgency', 'website-simulator-mvp')),
-                    array('value' => '30_days', 'label' => __('Up to 30 days', 'website-simulator-mvp')),
-                    array('value' => '15_days', 'label' => __('Up to 15 days', 'website-simulator-mvp')),
-                    array('value' => 'priority', 'label' => __('I need priority', 'website-simulator-mvp'))
-                )
+                    array('value' => 'no_urgency', 'text' => __('Sem urgência', 'website-simulator-mvp'), 'multiplier' => 1),
+                    array('value' => '30_days', 'text' => __('Até 30 dias', 'website-simulator-mvp'), 'multiplier' => 1),
+                    array('value' => '15_days', 'text' => __('Até 15 dias', 'website-simulator-mvp'), 'multiplier' => 1.15),
+                    array('value' => 'priority', 'text' => __('Preciso de prioridade', 'website-simulator-mvp'), 'multiplier' => 1.25),
+                ),
             ),
-            array(
-                'id' => 'branding',
-                'title' => __('Visual Customization', 'website-simulator-mvp'),
-                'description' => __('Customize the look of your future website', 'website-simulator-mvp'),
-                'type' => 'customization',
-                'required' => false,
-                'order' => 8,
-                'step' => 7,
-                'options' => array()
-            )
         );
     }
-    
+
     /**
      * Get default pricing rules
      */
-    private function get_default_pricing_rules() {
+    public static function get_default_pricing_rules() {
         return array(
-            // Site types - base values
-            array(
-                'rule_key' => 'site_type',
-                'rule_type' => 'base',
-                'option_key' => 'institutional',
-                'option_label' => __('Institutional website', 'website-simulator-mvp'),
-                'additional_value' => 1500.00,
-                'complexity_score' => 3,
-                'category' => 'site_type',
-                'is_active' => 1,
-                'display_order' => 1
+            'base_values' => array(
+                'institutional' => 1500,
+                'landing_page' => 900,
+                'ecommerce' => 3500,
+                'blog' => 1200,
+                'portfolio' => 1000,
+                'membership' => 2500,
             ),
-            array(
-                'rule_key' => 'site_type',
-                'rule_type' => 'base',
-                'option_key' => 'landing_page',
-                'option_label' => __('Landing page', 'website-simulator-mvp'),
-                'additional_value' => 900.00,
-                'complexity_score' => 2,
-                'category' => 'site_type',
-                'is_active' => 1,
-                'display_order' => 2
+            'page_values' => array(
+                'home' => 0,
+                'about' => 150,
+                'services' => 200,
+                'products' => 250,
+                'blog' => 300,
+                'portfolio' => 200,
+                'testimonials' => 150,
+                'faq' => 100,
+                'contact' => 100,
+                'privacy' => 80,
             ),
-            array(
-                'rule_key' => 'site_type',
-                'rule_type' => 'base',
-                'option_key' => 'ecommerce',
-                'option_label' => __('Online store', 'website-simulator-mvp'),
-                'additional_value' => 3500.00,
-                'complexity_score' => 5,
-                'category' => 'site_type',
-                'is_active' => 1,
-                'display_order' => 3
+            'feature_values' => array(
+                'contact_form' => 150,
+                'whatsapp_button' => 100,
+                'instagram_integration' => 200,
+                'google_maps' => 100,
+                'blog_module' => 400,
+                'newsletter' => 250,
+                'scheduling' => 500,
+                'membership_area' => 2000,
+                'online_payment' => 800,
+                'crm_integration' => 600,
+                'seo_basic' => 300,
+                'mobile_optimization' => 200,
             ),
-            array(
-                'rule_key' => 'site_type',
-                'rule_type' => 'base',
-                'option_key' => 'blog',
-                'option_label' => __('Blog', 'website-simulator-mvp'),
-                'additional_value' => 1200.00,
-                'complexity_score' => 2,
-                'category' => 'site_type',
-                'is_active' => 1,
-                'display_order' => 4
+            'visual_multipliers' => array(
+                'basic' => 1,
+                'colors_texts' => 1.1,
+                'custom_design' => 1.3,
+                'fully_custom' => 1.5,
             ),
-            array(
-                'rule_key' => 'site_type',
-                'rule_type' => 'base',
-                'option_key' => 'portfolio',
-                'option_label' => __('Portfolio', 'website-simulator-mvp'),
-                'additional_value' => 1000.00,
-                'complexity_score' => 2,
-                'category' => 'site_type',
-                'is_active' => 1,
-                'display_order' => 5
+            'content_values' => array(
+                'have_all' => 0,
+                'have_partial' => 300,
+                'need_texts' => 600,
+                'need_everything' => 1200,
             ),
-            array(
-                'rule_key' => 'site_type',
-                'rule_type' => 'base',
-                'option_key' => 'membership',
-                'option_label' => __('Membership area', 'website-simulator-mvp'),
-                'additional_value' => 2500.00,
-                'complexity_score' => 4,
-                'category' => 'site_type',
-                'is_active' => 1,
-                'display_order' => 6
+            'deadline_multipliers' => array(
+                'no_urgency' => 1,
+                '30_days' => 1,
+                '15_days' => 1.15,
+                'priority' => 1.25,
             ),
-            
-            // Pages - additional values per page
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'home',
-                'option_label' => __('Home page', 'website-simulator-mvp'),
-                'additional_value' => 0.00,
-                'complexity_score' => 0,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 1
+            'complexity_scores' => array(
+                'basic' => array('min' => 0, 'max' => 1000),
+                'intermediate' => array('min' => 1001, 'max' => 3000),
+                'advanced' => array('min' => 3001, 'max' => 6000),
+                'custom' => array('min' => 6001, 'max' => 999999),
             ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'about',
-                'option_label' => __('About', 'website-simulator-mvp'),
-                'additional_value' => 150.00,
-                'complexity_score' => 1,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 2
-            ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'services',
-                'option_label' => __('Services', 'website-simulator-mvp'),
-                'additional_value' => 200.00,
-                'complexity_score' => 1,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 3
-            ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'products',
-                'option_label' => __('Products', 'website-simulator-mvp'),
-                'additional_value' => 300.00,
-                'complexity_score' => 2,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 4
-            ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'blog',
-                'option_label' => __('Blog', 'website-simulator-mvp'),
-                'additional_value' => 250.00,
-                'complexity_score' => 1,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 5
-            ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'portfolio',
-                'option_label' => __('Portfolio', 'website-simulator-mvp'),
-                'additional_value' => 200.00,
-                'complexity_score' => 1,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 6
-            ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'testimonials',
-                'option_label' => __('Testimonials', 'website-simulator-mvp'),
-                'additional_value' => 100.00,
-                'complexity_score' => 1,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 7
-            ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'faq',
-                'option_label' => __('FAQ', 'website-simulator-mvp'),
-                'additional_value' => 100.00,
-                'complexity_score' => 1,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 8
-            ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'contact',
-                'option_label' => __('Contact', 'website-simulator-mvp'),
-                'additional_value' => 100.00,
-                'complexity_score' => 1,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 9
-            ),
-            array(
-                'rule_key' => 'page',
-                'rule_type' => 'additional',
-                'option_key' => 'privacy',
-                'option_label' => __('Privacy policy', 'website-simulator-mvp'),
-                'additional_value' => 100.00,
-                'complexity_score' => 1,
-                'category' => 'pages',
-                'is_active' => 1,
-                'display_order' => 10
-            ),
-            
-            // Features - additional values
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'contact_form',
-                'option_label' => __('Contact form', 'website-simulator-mvp'),
-                'additional_value' => 150.00,
-                'complexity_score' => 1,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 1
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'whatsapp_button',
-                'option_label' => __('WhatsApp button', 'website-simulator-mvp'),
-                'additional_value' => 50.00,
-                'complexity_score' => 1,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 2
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'instagram_integration',
-                'option_label' => __('Instagram integration', 'website-simulator-mvp'),
-                'additional_value' => 200.00,
-                'complexity_score' => 2,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 3
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'google_maps',
-                'option_label' => __('Google Maps', 'website-simulator-mvp'),
-                'additional_value' => 100.00,
-                'complexity_score' => 1,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 4
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'newsletter',
-                'option_label' => __('Newsletter', 'website-simulator-mvp'),
-                'additional_value' => 200.00,
-                'complexity_score' => 2,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 5
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'scheduling',
-                'option_label' => __('Scheduling', 'website-simulator-mvp'),
-                'additional_value' => 400.00,
-                'complexity_score' => 3,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 6
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'membership_area',
-                'option_label' => __('Membership area', 'website-simulator-mvp'),
-                'additional_value' => 2000.00,
-                'complexity_score' => 4,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 7
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'online_payment',
-                'option_label' => __('Online payment', 'website-simulator-mvp'),
-                'additional_value' => 800.00,
-                'complexity_score' => 3,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 8
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'crm_integration',
-                'option_label' => __('CRM integration', 'website-simulator-mvp'),
-                'additional_value' => 600.00,
-                'complexity_score' => 3,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 9
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'basic_seo',
-                'option_label' => __('Basic SEO', 'website-simulator-mvp'),
-                'additional_value' => 300.00,
-                'complexity_score' => 2,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 10
-            ),
-            array(
-                'rule_key' => 'feature',
-                'rule_type' => 'additional',
-                'option_key' => 'mobile_optimization',
-                'option_label' => __('Mobile optimization', 'website-simulator-mvp'),
-                'additional_value' => 200.00,
-                'complexity_score' => 2,
-                'category' => 'features',
-                'is_active' => 1,
-                'display_order' => 11
-            ),
-            
-            // Visual customization levels
-            array(
-                'rule_key' => 'visual_customization',
-                'rule_type' => 'multiplier',
-                'option_key' => 'basic_template',
-                'option_label' => __('Basic template', 'website-simulator-mvp'),
-                'additional_value' => 0.00,
-                'complexity_score' => 1,
-                'category' => 'customization',
-                'is_active' => 1,
-                'display_order' => 1
-            ),
-            array(
-                'rule_key' => 'visual_customization',
-                'rule_type' => 'multiplier',
-                'option_key' => 'colors_texts',
-                'option_label' => __('Colors and texts customization', 'website-simulator-mvp'),
-                'additional_value' => 500.00,
-                'complexity_score' => 2,
-                'category' => 'customization',
-                'is_active' => 1,
-                'display_order' => 2
-            ),
-            array(
-                'rule_key' => 'visual_customization',
-                'rule_type' => 'multiplier',
-                'option_key' => 'custom_design',
-                'option_label' => __('Custom design', 'website-simulator-mvp'),
-                'additional_value' => 1200.00,
-                'complexity_score' => 3,
-                'category' => 'customization',
-                'is_active' => 1,
-                'display_order' => 3
-            ),
-            array(
-                'rule_key' => 'visual_customization',
-                'rule_type' => 'multiplier',
-                'option_key' => 'fully_custom',
-                'option_label' => __('Fully custom design', 'website-simulator-mvp'),
-                'additional_value' => 2500.00,
-                'complexity_score' => 5,
-                'category' => 'customization',
-                'is_active' => 1,
-                'display_order' => 4
-            ),
-            
-            // Content status
-            array(
-                'rule_key' => 'content_status',
-                'rule_type' => 'additional',
-                'option_key' => 'have_all',
-                'option_label' => __('Yes, I have everything', 'website-simulator-mvp'),
-                'additional_value' => 0.00,
-                'complexity_score' => 0,
-                'category' => 'content',
-                'is_active' => 1,
-                'display_order' => 1
-            ),
-            array(
-                'rule_key' => 'content_status',
-                'rule_type' => 'additional',
-                'option_key' => 'have_partial',
-                'option_label' => __('I have part of the content', 'website-simulator-mvp'),
-                'additional_value' => 300.00,
-                'complexity_score' => 1,
-                'category' => 'content',
-                'is_active' => 1,
-                'display_order' => 2
-            ),
-            array(
-                'rule_key' => 'content_status',
-                'rule_type' => 'additional',
-                'option_key' => 'need_texts',
-                'option_label' => __('I need help with texts', 'website-simulator-mvp'),
-                'additional_value' => 600.00,
-                'complexity_score' => 2,
-                'category' => 'content',
-                'is_active' => 1,
-                'display_order' => 3
-            ),
-            array(
-                'rule_key' => 'content_status',
-                'rule_type' => 'additional',
-                'option_key' => 'need_everything',
-                'option_label' => __('I need texts and images', 'website-simulator-mvp'),
-                'additional_value' => 1200.00,
-                'complexity_score' => 3,
-                'category' => 'content',
-                'is_active' => 1,
-                'display_order' => 4
-            ),
-            
-            // Deadline urgency
-            array(
-                'rule_key' => 'deadline',
-                'rule_type' => 'percentage',
-                'option_key' => 'no_urgency',
-                'option_label' => __('No urgency', 'website-simulator-mvp'),
-                'additional_value' => 0.00,
-                'complexity_score' => 0,
-                'category' => 'deadline',
-                'is_active' => 1,
-                'display_order' => 1
-            ),
-            array(
-                'rule_key' => 'deadline',
-                'rule_type' => 'percentage',
-                'option_key' => '30_days',
-                'option_label' => __('Up to 30 days', 'website-simulator-mvp'),
-                'additional_value' => 0.00,
-                'complexity_score' => 1,
-                'category' => 'deadline',
-                'is_active' => 1,
-                'display_order' => 2
-            ),
-            array(
-                'rule_key' => 'deadline',
-                'rule_type' => 'percentage',
-                'option_key' => '15_days',
-                'option_label' => __('Up to 15 days', 'website-simulator-mvp'),
-                'additional_value' => 0.15,
-                'complexity_score' => 2,
-                'category' => 'deadline',
-                'is_active' => 1,
-                'display_order' => 3
-            ),
-            array(
-                'rule_key' => 'deadline',
-                'rule_type' => 'percentage',
-                'option_key' => 'priority',
-                'option_label' => __('I need priority', 'website-simulator-mvp'),
-                'additional_value' => 0.25,
-                'complexity_score' => 3,
-                'category' => 'deadline',
-                'is_active' => 1,
-                'display_order' => 4
-            )
         );
+    }
+
+    /**
+     * Get settings
+     */
+    public function get_settings() {
+        return get_option($this->settings_key, array());
+    }
+
+    /**
+     * Update settings
+     */
+    public function update_settings($settings) {
+        return update_option($this->settings_key, $settings);
+    }
+
+    /**
+     * Get a specific setting
+     */
+    public function get_setting($key, $default = '') {
+        $settings = $this->get_settings();
+        return isset($settings[$key]) ? $settings[$key] : $default;
+    }
+
+    /**
+     * Get questions
+     */
+    public function get_questions() {
+        return get_option($this->questions_key, self::get_default_questions());
+    }
+
+    /**
+     * Update questions
+     */
+    public function update_questions($questions) {
+        return update_option($this->questions_key, $questions);
+    }
+
+    /**
+     * Get pricing rules
+     */
+    public function get_pricing_rules() {
+        return get_option($this->pricing_key, self::get_default_pricing_rules());
+    }
+
+    /**
+     * Update pricing rules
+     */
+    public function update_pricing_rules($rules) {
+        return update_option($this->pricing_key, $rules);
     }
 }

@@ -1,445 +1,361 @@
 /**
- * Frontend JavaScript for Website Simulator MVP
+ * Frontend JavaScript
  * 
- * Handles the multi-step form, price calculation, and submission
- * 
- * @package WSMVP
+ * @package Website_Simulator_MVP
  */
 
 (function($) {
     'use strict';
-    
-    class WebsiteSimulator {
-        constructor() {
-            this.currentStep = 1;
-            this.totalSteps = Object.keys(wsmvpData.steps).length;
-            this.answers = {};
-            this.calculationResult = null;
-            
-            this.init();
-        }
-        
-        init() {
+
+    const WSMVP = {
+        currentStep: 1,
+        totalSteps: 0,
+        responses: {},
+
+        init: function() {
+            this.cacheElements();
             this.bindEvents();
+            this.totalSteps = parseInt($('.wsmvp-total-steps').text());
+        },
+
+        cacheElements: function() {
+            this.$intro = $('#wsmvp-intro');
+            this.$form = $('#wsmvp-form');
+            this.$steps = $('.wsmvp-step');
+            this.$progressFill = $('.wsmvp-progress-fill');
+            this.$currentStep = $('.wsmvp-current-step');
+            this.$startBtn = $('#wsmvp-start-btn');
+            this.$previewContainer = $('#wsmvp-preview-container');
+            this.$resultSummary = $('#wsmvp-result-summary');
+        },
+
+        bindEvents: function() {
+            this.$startBtn.on('click', () => this.startSimulation());
+            
+            $(document).on('click', '.wsmvp-next-btn', () => this.nextStep());
+            $(document).on('click', '.wsmvp-prev-btn', () => this.prevStep());
+            
+            $(document).on('change', 'input, select, textarea', (e) => this.handleInputChange(e));
+            
+            this.$form.on('submit', (e) => this.handleSubmit(e));
+
+            // Option card selection
+            $(document).on('click', '.wsmvp-option-card', function() {
+                $('.wsmvp-option-card').removeClass('selected');
+                $(this).addClass('selected');
+                $(this).find('input').prop('checked', true);
+            });
+        },
+
+        startSimulation: function() {
+            this.$intro.hide();
+            this.$form.show();
             this.updateProgress();
-        }
-        
-        bindEvents() {
-            // Navigation buttons
-            $('#nextBtn').on('click', () => this.nextStep());
-            $('#prevBtn').on('click', () => this.prevStep());
-            
-            // Form submission
-            $('#wsmvp-form').on('submit', (e) => this.handleSubmit(e));
-            
-            // Option selection styling
-            $('.wsmvp-radio-option, .wsmvp-checkbox-option').on('click', function() {
-                if ($(this).find('input[type="radio"]').length) {
-                    $(this).siblings().removeClass('selected');
-                    $(this).addClass('selected');
-                } else if ($(this).find('input[type="checkbox"]').length) {
-                    $(this).toggleClass('selected');
-                }
-            });
-            
-            // Preview toggle
-            $('#togglePreviewBtn').on('click', () => this.togglePreview());
-            
-            // Real-time price calculation on answer change
-            $('.wsmvp-question-field input, .wsmvp-question-field select, .wsmvp-question-field textarea').on('change', () => {
-                this.collectAnswers();
-                this.calculatePrice();
-            });
-        }
-        
-        collectAnswers() {
-            this.answers = {};
-            
-            $('.wsmvp-step.active').each((_, step) => {
-                const $step = $(step);
-                
-                // Get select values
-                $step.find('select').each((_, select) => {
-                    const name = $(select).attr('name');
-                    const value = $(select).val();
-                    if (value && name) {
-                        this.answers[name] = value;
-                    }
-                });
-                
-                // Get radio values
-                $step.find('input[type="radio"]:checked').each((_, radio) => {
-                    const name = $(radio).attr('name');
-                    const value = $(radio).val();
-                    if (value && name) {
-                        this.answers[name] = value;
-                    }
-                });
-                
-                // Get checkbox values
-                $step.find('input[type="checkbox"]:checked').each((_, checkbox) => {
-                    const name = $(checkbox).attr('name').replace('[]', '');
-                    if (!this.answers[name]) {
-                        this.answers[name] = [];
-                    }
-                    this.answers[name].push($(checkbox).val());
-                });
-                
-                // Get text inputs
-                $step.find('input[type="text"], input[type="email"], input[type="number"], input[type="tel"], textarea').each((_, input) => {
-                    const name = $(input).attr('name');
-                    const value = $(input).val();
-                    if (value && name) {
-                        this.answers[name] = value;
-                    }
-                });
-            });
-        }
-        
-        calculatePrice() {
-            if (Object.keys(this.answers).length === 0) {
-                return;
-            }
-            
-            $.ajax({
-                url: wsmvpData.ajaxUrl,
-                type: 'POST',
-                data: {
-                    action: 'wsmvp_calculate_price',
-                    nonce: wsmvpData.nonce,
-                    answers: this.answers
-                },
-                success: (response) => {
-                    if (response.success) {
-                        this.calculationResult = response.data;
-                        this.updateResultDisplay();
-                    }
-                }
-            });
-        }
-        
-        updateResultDisplay() {
-            if (!this.calculationResult) return;
-            
-            const result = this.calculationResult;
-            
-            $('#result-category').text(this.getCategoryLabel(result.category));
-            $('#result-price-min').text(this.formatPrice(result.price_min, result.currency_symbol));
-            $('#result-price-max').text(this.formatPrice(result.price_max, result.currency_symbol));
-            $('#result-deadline').text(result.deadline_days);
-        }
-        
-        getCategoryLabel(category) {
-            const labels = {
-                'basic': wsmvpData.i18n.basicProject || 'Basic Project',
-                'intermediate': wsmvpData.i18n.intermediateProject || 'Intermediate Project',
-                'advanced': wsmvpData.i18n.advancedProject || 'Advanced Project',
-                'custom': wsmvpData.i18n.customProject || 'Custom Project'
-            };
-            return labels[category] || category;
-        }
-        
-        formatPrice(value, symbol) {
-            return symbol + ' ' + value.toFixed(2).replace('.', ',');
-        }
-        
-        nextStep() {
+        },
+
+        nextStep: function() {
             if (!this.validateCurrentStep()) {
                 return;
             }
-            
-            const $currentStep = $(`.wsmvp-step[data-step="${this.currentStep}"]`);
-            $currentStep.removeClass('active');
-            
-            // Check if we're moving to contact step or result step
-            if (this.currentStep >= this.totalSteps) {
-                // Show contact step first
-                if ($(`.wsmvp-step[data-step="contact"]`).length && !$('.wsmvp-step[data-step="contact"]').hasClass('active')) {
-                    this.showStep('contact');
-                    return;
-                }
+
+            this.saveCurrentResponses();
+
+            if (this.currentStep < this.totalSteps) {
+                this.showStep(this.currentStep + 1);
                 
-                // Calculate final price and show results
-                this.calculatePrice();
-                this.showStep('result');
-                return;
+                // If going to final step, load preview and calculate
+                if (this.currentStep + 1 === this.totalSteps) {
+                    this.loadPreview();
+                    this.calculateEstimate();
+                }
             }
-            
-            this.currentStep++;
-            this.showStep(this.currentStep);
+        },
+
+        prevStep: function() {
+            if (this.currentStep > 1) {
+                this.showStep(this.currentStep - 1);
+            }
+        },
+
+        showStep: function(step) {
+            this.$steps.hide();
+            $(`.wsmvp-step[data-step="${step}"]`).show();
+            this.currentStep = step;
             this.updateProgress();
-        }
-        
-        prevStep() {
-            const $currentStep = $(`.wsmvp-step[data-step="${this.currentStep}"]`);
-            $currentStep.removeClass('active');
-            
-            if (this.currentStep <= 1) {
-                return;
-            }
-            
-            // Handle going back from special steps
-            if (this.currentStep === 'contact') {
-                this.currentStep = this.totalSteps;
-            } else if (this.currentStep === 'result' || this.currentStep === 'success') {
-                this.currentStep = 'contact';
-                if ($('.wsmvp-step[data-step="contact"]').length) {
-                    this.showStep('contact');
-                    this.updateProgress();
-                    return;
-                }
-            }
-            
-            this.currentStep--;
-            this.showStep(this.currentStep);
-            this.updateProgress();
-        }
-        
-        showStep(step) {
-            $(`.wsmvp-step[data-step="${step}"]`).addClass('active');
-            this.updateNavigation(step);
-        }
-        
-        updateNavigation(step) {
-            const $prevBtn = $('#prevBtn');
-            const $nextBtn = $('#nextBtn');
-            const $submitBtn = $('#submitBtn');
-            
-            // Hide all buttons first
-            $prevBtn.hide();
-            $nextBtn.hide();
-            $submitBtn.hide();
-            
-            if (step === 'result') {
-                $submitBtn.show();
-            } else if (step === 'success') {
-                // No navigation on success
-            } else if (step === 'contact') {
-                $prevBtn.show();
-                $submitBtn.show();
-            } else {
-                $prevBtn.show();
-                $nextBtn.show();
-                
-                if (step <= 1) {
-                    $prevBtn.hide();
-                }
-            }
-        }
-        
-        updateProgress() {
-            const progress = (this.currentStep / (this.totalSteps + 2)) * 100; // +2 for contact and result steps
-            $('.wsmvp-progress-fill').css('width', progress + '%');
-            
-            $('.wsmvp-progress-step').each((index, step) => {
-                const stepNum = parseInt($(step).data('step'));
-                $(step).removeClass('active completed');
-                
-                if (stepNum < this.currentStep) {
-                    $(step).addClass('completed');
-                } else if (stepNum === this.currentStep) {
-                    $(step).addClass('active');
-                }
-            });
-        }
-        
-        validateCurrentStep() {
-            const $currentStep = $(`.wsmvp-step[data-step="${this.currentStep}"]`);
+        },
+
+        updateProgress: function() {
+            const progress = (this.currentStep / this.totalSteps) * 100;
+            this.$progressFill.css('width', `${progress}%`);
+            this.$currentStep.text(this.currentStep);
+        },
+
+        validateCurrentStep: function() {
+            const $currentStepEl = $(`.wsmvp-step[data-step="${this.currentStep}"]`);
+            const $requiredFields = $currentStepEl.find('[required]');
             let isValid = true;
-            
-            // Clear previous errors
-            $currentStep.find('.wsmvp-error').removeClass('wsmvp-error');
-            $currentStep.find('.wsmvp-error-message').remove();
-            
-            // Validate required fields
-            $currentStep.find('[required]').each((_, field) => {
-                const $field = $(field);
+
+            $requiredFields.each(function() {
+                const $field = $(this);
                 let value = $field.val();
                 
                 // Handle checkboxes
                 if ($field.attr('type') === 'checkbox') {
-                    const name = $field.attr('name').replace('[]', '');
-                    const checked = $(`input[name="${$field.attr('name')}"]:checked`).length;
-                    if (checked === 0) {
+                    const name = $field.attr('name');
+                    const $checked = $(`input[name="${name}"]:checked`);
+                    if ($checked.length === 0 && $field.closest('.wsmvp-field').find('[required]').length > 0) {
                         isValid = false;
-                        this.showError($field.closest('.wsmvp-question'), wsmvpData.i18n.required);
                     }
                     return;
                 }
-                
+
+                // Handle radios
+                if ($field.attr('type') === 'radio') {
+                    const name = $field.attr('name');
+                    if ($(`input[name="${name}"]:checked`).length === 0) {
+                        isValid = false;
+                    }
+                    return;
+                }
+
                 if (!value || value.trim() === '') {
                     isValid = false;
-                    this.showError($field, wsmvpData.i18n.required);
+                    $field.addClass('error');
+                } else {
+                    $field.removeClass('error');
                 }
-                
-                // Validate email
-                if ($field.attr('type') === 'email' && value) {
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(value)) {
-                        isValid = false;
-                        this.showError($field, wsmvpData.i18n.invalidEmail);
+            });
+
+            if (!isValid) {
+                alert(wsmvpConfig.strings.required);
+            }
+
+            return isValid;
+        },
+
+        saveCurrentResponses: function() {
+            const $currentStepEl = $(`.wsmvp-step[data-step="${this.currentStep}"]`);
+            
+            // Save text inputs and selects
+            $currentStepEl.find('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], select, textarea').each(function() {
+                const name = $(this).attr('name');
+                if (name) {
+                    WSMVP.responses[name] = $(this).val();
+                }
+            });
+
+            // Save radio buttons
+            $currentStepEl.find('input[type="radio"]:checked').each(function() {
+                const name = $(this).attr('name');
+                if (name) {
+                    WSMVP.responses[name] = $(this).val();
+                }
+            });
+
+            // Save checkboxes
+            $currentStepEl.find('input[type="checkbox"]:checked').each(function() {
+                const name = $(this).attr('name');
+                if (name) {
+                    if (!WSMVP.responses[name]) {
+                        WSMVP.responses[name] = [];
+                    }
+                    WSMVP.responses[name].push($(this).val());
+                }
+            });
+        },
+
+        handleInputChange: function(e) {
+            const $target = $(e.target);
+            
+            // Update option card selection
+            if ($target.is('input[type="radio"]')) {
+                $target.closest('.wsmvp-options-grid').find('.wsmvp-option-card').removeClass('selected');
+                $target.closest('.wsmvp-option-card').addClass('selected');
+            }
+        },
+
+        loadPreview: function() {
+            this.$previewContainer.html(`
+                <div class="wsmvp-preview-loading">
+                    <div class="wsmvp-spinner"></div>
+                    <p>${wsmvpConfig.strings.loading}</p>
+                </div>
+            `);
+
+            $.ajax({
+                url: wsmvpConfig.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'wsmvp_get_preview',
+                    nonce: wsmvpConfig.nonce,
+                    responses: JSON.stringify(this.responses)
+                },
+                success: (response) => {
+                    if (response.success) {
+                        this.$previewContainer.html(response.data.html);
                     }
                 }
             });
+        },
+
+        calculateEstimate: function() {
+            // Calculate client-side for immediate feedback
+            const pricing = this.calculatePricing();
             
-            return isValid;
-        }
-        
-        showError($element, message) {
-            $element.addClass('wsmvp-error');
-            
-            if (!$element.next('.wsmvp-error-message').length) {
-                $element.after(`<div class="wsmvp-error-message">${message}</div>`);
-            }
-        }
-        
-        handleSubmit(e) {
-            e.preventDefault();
-            
-            if (!this.validateCurrentStep()) {
-                return;
-            }
-            
-            // Collect all answers
-            this.collectAnswers();
-            
-            // Get contact info
-            const contactData = {
-                name: $('#wsmvp-name').val(),
-                company: $('#wsmvp-company').val(),
-                email: $('#wsmvp-email').val(),
-                phone: $('#wsmvp-phone').val(),
-                notes: $('#wsmvp-notes').val(),
-                consent: $('#wsmvp-consent').is(':checked')
+            $('#result-category').text(pricing.categoryLabel);
+            $('#result-price').text(`${pricing.currencySymbol} ${pricing.minValue} - ${pricing.maxValue}`);
+            $('#result-deadline').text(`${pricing.deadlineDays} dias`);
+        },
+
+        calculatePricing: function() {
+            const r = this.responses;
+            let total = 0;
+
+            // Base value by site type
+            const baseValues = {
+                institutional: 1500,
+                landing_page: 900,
+                ecommerce: 3500,
+                blog: 1200,
+                portfolio: 1000,
+                membership: 2500
             };
-            
-            // Validate consent
-            if (!contactData.consent) {
-                this.showError($('#wsmvp-consent'), wsmvpData.i18n.consentRequired);
+            total += baseValues[r.site_type] || 1500;
+
+            // Add pages
+            if (r.pages && Array.isArray(r.pages)) {
+                const pageValues = {
+                    home: 0, about: 150, services: 200, products: 250,
+                    blog: 300, portfolio: 200, testimonials: 150,
+                    faq: 100, contact: 100, privacy: 80
+                };
+                r.pages.forEach(page => {
+                    total += pageValues[page] || 0;
+                });
+            }
+
+            // Add features
+            if (r.features && Array.isArray(r.features)) {
+                const featureValues = {
+                    contact_form: 150, whatsapp_button: 100, instagram_integration: 200,
+                    google_maps: 100, blog_module: 400, newsletter: 250,
+                    scheduling: 500, membership_area: 2000, online_payment: 800,
+                    crm_integration: 600, seo_basic: 300, mobile_optimization: 200
+                };
+                r.features.forEach(feature => {
+                    total += featureValues[feature] || 0;
+                });
+            }
+
+            // Visual multiplier
+            const visualMultipliers = { basic: 1, colors_texts: 1.1, custom_design: 1.3, fully_custom: 1.5 };
+            total *= visualMultipliers[r.visual_level] || 1;
+
+            // Content value
+            const contentValues = { have_all: 0, have_partial: 300, need_texts: 600, need_everything: 1200 };
+            total += contentValues[r.content_status] || 0;
+
+            // Deadline multiplier
+            const deadlineMultipliers = { no_urgency: 1, '30_days': 1, '15_days': 1.15, priority: 1.25 };
+            total *= deadlineMultipliers[r.deadline] || 1;
+
+            // Ensure minimum
+            total = Math.max(total, 500);
+            total = Math.round(total / 10) * 10;
+
+            // Min/Max with margin
+            const minValue = Math.round(total * 0.9);
+            const maxValue = Math.round(total * 1.2);
+
+            // Category
+            let category = 'basic';
+            if (total > 6000) category = 'custom';
+            else if (total > 3000) category = 'advanced';
+            else if (total > 1000) category = 'intermediate';
+
+            const categoryLabels = {
+                basic: 'Projeto Básico',
+                intermediate: 'Projeto Intermediário',
+                advanced: 'Projeto Avançado',
+                custom: 'Projeto Sob Medida'
+            };
+
+            // Deadline days
+            const baseDays = { landing_page: 7, institutional: 15, portfolio: 12, blog: 18, membership: 25, ecommerce: 30 };
+            let deadlineDays = baseDays[r.site_type] || 20;
+            deadlineDays = Math.round(deadlineDays * (deadlineMultipliers[r.deadline] || 1));
+
+            return {
+                total,
+                minValue: minValue.toLocaleString('pt-BR'),
+                maxValue: maxValue.toLocaleString('pt-BR'),
+                categoryLabel: categoryLabels[category],
+                deadlineDays,
+                currencySymbol: 'R$'
+            };
+        },
+
+        handleSubmit: function(e) {
+            e.preventDefault();
+
+            const consent = $('#wsmvp-consent').is(':checked');
+            if (!consent) {
+                alert(wsmvpConfig.strings.privacyRequired);
                 return;
             }
-            
-            // Show loading
-            $('#loadingOverlay').fadeIn();
-            
-            // Submit simulation
+
+            // Save final form data
+            this.responses.name = $('#wsmvp-name').val();
+            this.responses.email = $('#wsmvp-email').val();
+            this.responses.company = $('#wsmvp-company').val();
+            this.responses.whatsapp = $('#wsmvp-whatsapp').val();
+            this.responses.notes = $('#wsmvp-notes').val();
+
+            const $submitBtn = $('.wsmvp-submit-btn');
+            $submitBtn.prop('disabled', true).text(wsmvpConfig.strings.loading);
+
             $.ajax({
-                url: wsmvpData.ajaxUrl,
+                url: wsmvpConfig.ajaxUrl,
                 type: 'POST',
                 data: {
                     action: 'wsmvp_submit_simulation',
-                    nonce: wsmvpData.nonce,
-                    ...contactData,
-                    answers: this.answers,
-                    estimated_value: this.calculationResult ? this.calculationResult.total : 0,
-                    project_category: this.calculationResult ? this.calculationResult.category : 'basic'
+                    nonce: wsmvpConfig.nonce,
+                    name: this.responses.name,
+                    email: this.responses.email,
+                    company: this.responses.company,
+                    whatsapp: this.responses.whatsapp,
+                    notes: this.responses.notes,
+                    consent: '1',
+                    responses: JSON.stringify(this.responses)
                 },
                 success: (response) => {
-                    $('#loadingOverlay').fadeOut();
-                    
                     if (response.success) {
-                        this.showSuccessStep();
+                        this.$form.hide();
+                        $('#wsmvp-success').show();
                     } else {
-                        alert(response.data.message || wsmvpData.i18n.error);
+                        this.showError(response.data?.message || wsmvpConfig.strings.error);
                     }
                 },
                 error: () => {
-                    $('#loadingOverlay').fadeOut();
-                    alert(wsmvpData.i18n.error);
+                    this.showError(wsmvpConfig.strings.error);
+                },
+                complete: () => {
+                    $submitBtn.prop('disabled', false).text(wsmvpConfig.strings.finish);
                 }
             });
+        },
+
+        showError: function(message) {
+            this.$form.hide();
+            $('#wsmvp-error .wsmvp-error-message').text(message);
+            $('#wsmvp-error').show();
         }
-        
-        showSuccessStep() {
-            $('.wsmvp-step').removeClass('active');
-            $('.wsmvp-step[data-step="success"]').addClass('active');
-            $('.wsmvp-navigation').hide();
-        }
-        
-        togglePreview() {
-            const $preview = $('#sitePreview');
-            $preview.toggleClass('active');
-            
-            if ($preview.hasClass('active')) {
-                this.loadPreview();
-            }
-        }
-        
-        loadPreview() {
-            // Generate preview based on answers
-            const previewHtml = this.generatePreview();
-            $('#sitePreview').html(previewHtml);
-        }
-        
-        generatePreview() {
-            const settings = wsmvpData.settings;
-            const answers = this.answers;
-            
-            let html = '<div class="wsmvp-preview-container">';
-            
-            // Header
-            html += '<div class="preview-header" style="background: ' + (settings.primary_color || '#3b82f6') + '; color: white; padding: 20px;">';
-            html += '<div class="preview-logo">' + (settings.company_name || 'Company Name') + '</div>';
-            html += '<nav class="preview-nav">Home | About | Services | Contact</nav>';
-            html += '</div>';
-            
-            // Hero section
-            html += '<div class="preview-hero" style="padding: 60px 20px; text-align: center; background: #f5f5f5;">';
-            html += '<h2 style="font-size: 32px; margin-bottom: 20px;">Welcome to Your New Website</h2>';
-            html += '<p style="font-size: 18px; color: #666;">Professional solutions for your business</p>';
-            html += '<button style="margin-top: 20px; padding: 12px 30px; background: ' + (settings.primary_color || '#3b82f6') + '; color: white; border: none; border-radius: 4px; cursor: pointer;">Get Started</button>';
-            html += '</div>';
-            
-            // Site type specific content
-            if (answers.site_type === 'ecommerce') {
-                html += '<div class="preview-products" style="padding: 40px 20px;">';
-                html += '<h3 style="text-align: center; margin-bottom: 30px;">Featured Products</h3>';
-                html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">';
-                for (let i = 0; i < 3; i++) {
-                    html += '<div style="border: 1px solid #ddd; padding: 20px; text-align: center;">';
-                    html += '<div style="height: 150px; background: #eee; margin-bottom: 15px;"></div>';
-                    html += '<p>Product ' + (i + 1) + '</p>';
-                    html += '<p style="color: ' + (settings.primary_color || '#3b82f6') + '; font-weight: bold;">$99.99</p>';
-                    html += '</div>';
-                }
-                html += '</div></div>';
-            }
-            
-            // Features
-            if (answers.features && answers.features.length > 0) {
-                html += '<div class="preview-features" style="padding: 40px 20px; background: #f9f9f9;">';
-                html += '<h3 style="text-align: center; margin-bottom: 30px;">Features</h3>';
-                html += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">';
-                answers.features.forEach(feature => {
-                    html += '<div style="padding: 20px; background: white; border-radius: 8px;">';
-                    html += '<div style="width: 40px; height: 40px; background: ' + (settings.primary_color || '#3b82f6') + '; border-radius: 50%; margin-bottom: 15px;"></div>';
-                    html += '<p style="font-weight: 600;">' + feature.replace(/_/g, ' ').toUpperCase() + '</p>';
-                    html += '</div>';
-                });
-                html += '</div></div>';
-            }
-            
-            // WhatsApp button
-            if (answers.features && answers.features.includes('whatsapp_button')) {
-                html += '<div style="position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #25D366; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 30px;">📱</div>';
-            }
-            
-            // Footer
-            html += '<footer style="background: #333; color: white; padding: 30px 20px; text-align: center;">';
-            html += '<p>&copy; ' + new Date().getFullYear() + ' ' + (settings.company_name || 'Company Name') + '. All rights reserved.</p>';
-            html += '</footer>';
-            
-            html += '</div>';
-            
-            return html;
-        }
-    }
-    
-    // Initialize when DOM is ready
-    $(document).ready(function() {
-        if ($('#wsmvpSimulator').length) {
-            new WebsiteSimulator();
+    };
+
+    $(document).ready(() => {
+        if ($('#wsmvp-simulator').length) {
+            WSMVP.init();
         }
     });
-    
+
 })(jQuery);

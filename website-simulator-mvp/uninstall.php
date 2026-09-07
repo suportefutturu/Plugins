@@ -1,35 +1,36 @@
 <?php
 /**
- * Uninstall handler for Website Simulator MVP
+ * Uninstall handler
  * 
- * Removes plugin data on uninstall (if configured)
- * 
- * @package WSMVP
+ * @package Website_Simulator_MVP
  */
 
-// Prevent direct access
-if (!defined('WP_UNINSTALL_PLUGIN')) {
+if (!defined('ABSPATH')) {
     exit;
 }
 
-// Only remove data if explicitly allowed in settings
-if (get_option('wsmvp_remove_data_on_uninstall', false)) {
+// Check if user has permission
+if (!current_user_can('activate_plugins')) {
+    return;
+}
+
+// Check if we should delete data
+$delete_data = get_option('wsmvp_delete_data_on_uninstall', false);
+
+if ($delete_data) {
     global $wpdb;
     
-    // Drop custom tables
+    // Drop tables
     $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wsmvp_simulations");
-    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wsmvp_questions");
-    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wsmvp_pricing_rules");
     
-    // Remove all options
+    // Delete all options
     delete_option('wsmvp_version');
     delete_option('wsmvp_db_version');
     delete_option('wsmvp_settings');
     delete_option('wsmvp_questions');
     delete_option('wsmvp_pricing_rules');
-    delete_option('wsmvp_activated');
-    delete_option('wsmvp_remove_data_on_uninstall');
+    delete_option('wsmvp_delete_data_on_uninstall');
     
-    // Clear any scheduled events
-    wp_clear_scheduled_hook('wsmvp_cleanup_old_leads');
+    // Clear any transients
+    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wsmvp_%'");
 }

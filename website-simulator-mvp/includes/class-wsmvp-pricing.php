@@ -1,255 +1,301 @@
 <?php
 /**
- * Pricing calculator for Website Simulator MVP
+ * Pricing calculator class
  * 
- * Calculates project estimates based on user selections
+ * Handles price estimation based on user responses
  * 
- * @package WSMVP
+ * @package Website_Simulator_MVP
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class WSMVP_Pricing {
-    
+final class WSMVP_Pricing {
+
+    private static $instance = null;
     private $settings;
-    
-    public function __construct() {
-        $this->settings = new WSMVP_Settings();
-        
-        // Register AJAX handlers
-        add_action('wp_ajax_wsmvp_calculate_price', array($this, 'ajax_calculate_price'));
-        add_action('wp_ajax_nopriv_wsmvp_calculate_price', array($this, 'ajax_calculate_price'));
+    private $pricing_rules;
+
+    public static function get_instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
     }
-    
+
+    private function __construct() {
+        $this->settings = WSMVP_Settings::get_instance()->get_settings();
+        $this->pricing_rules = WSMVP_Settings::get_instance()->get_pricing_rules();
+    }
+
     /**
-     * Calculate project price based on answers
+     * Calculate estimated price based on responses
      */
-    public function calculate($answers) {
-        $pricing_rules = $this->settings->get_pricing_rules();
-        $settings = $this->settings->get_settings();
-        
-        $base_value = 0;
-        $additional_value = 0;
+    public function calculate($responses) {
+        if (empty($responses)) {
+            return array(
+                'total' => 0,
+                'min_value' => 0,
+                'max_value' => 0,
+                'category' => 'basic',
+                'deadline_days' => 30,
+                'complexity_score' => 0,
+            );
+        }
+
+        $total = 0;
         $complexity_score = 0;
-        $percentage_multiplier = 0;
-        $customization_value = 0;
-        
-        // Process each answer
-        foreach ($answers as $question_id => $answer) {
-            if (empty($answer)) {
-                continue;
-            }
-            
-            // Handle different question types
-            $answer_values = is_array($answer) ? $answer : array($answer);
-            
-            foreach ($answer_values as $answer_value) {
-                if (empty($answer_value)) {
-                    continue;
-                }
-                
-                // Find matching pricing rules
-                foreach ($pricing_rules as $rule) {
-                    if (!$rule['is_active']) {
-                        continue;
-                    }
-                    
-                    $match = false;
-                    
-                    // Match by rule key and option
-                    if ($rule['rule_key'] === $question_id && $rule['option_key'] === $answer_value) {
-                        $match = true;
-                    }
-                    
-                    if (!$match) {
-                        continue;
-                    }
-                    
-                    $rule_value = floatval($rule['additional_value']);
-                    $rule_complexity = intval($rule['complexity_score']);
-                    
-                    // Apply rule based on type
-                    switch ($rule['rule_type']) {
-                        case 'base':
-                            $base_value = max($base_value, $rule_value);
-                            $complexity_score += $rule_complexity;
-                            break;
-                            
-                        case 'additional':
-                            $additional_value += $rule_value;
-                            $complexity_score += $rule_complexity;
-                            break;
-                            
-                        case 'multiplier':
-                            $customization_value += $rule_value;
-                            $complexity_score += $rule_complexity;
-                            break;
-                            
-                        case 'percentage':
-                            $percentage_multiplier = max($percentage_multiplier, $rule_value);
-                            $complexity_score += $rule_complexity;
-                            break;
-                    }
-                }
+
+        // Get site type base value
+        $site_type = isset($responses['site_type']) ? $responses['site_type'] : 'institutional';
+        $base_value = isset($this->pricing_rules['base_values'][$site_type]) 
+            ? $this->pricing_rules['base_values'][$site_type] 
+            : 1500;
+        $total += $base_value;
+        $complexity_score += $base_value / 100;
+
+        // Add objective value
+        if (isset($responses['objective'])) {
+            $objective_value = $this->get_option_value('objective', $responses['objective'], 'value_add');
+            $total += $objective_value;
+            $complexity_score += $objective_value / 100;
+        }
+
+        // Add pages values
+        if (isset($responses['pages']) && is_array($responses['pages'])) {
+            foreach ($responses['pages'] as $page) {
+                $page_value = isset($this->pricing_rules['page_values'][$page]) 
+                    ? $this->pricing_rules['page_values'][$page] 
+                    : 0;
+                $total += $page_value;
+                $complexity_score += 1; // Each page adds 1 to complexity
             }
         }
-        
-        // Calculate subtotal
-        $subtotal = $base_value + $additional_value + $customization_value;
-        
-        // Apply percentage multiplier (urgency, etc.)
-        if ($percentage_multiplier > 0) {
-            $subtotal += ($subtotal * $percentage_multiplier);
+
+        // Add features values
+        if (isset($responses['features']) && is_array($responses['features'])) {
+            foreach ($responses['features'] as $feature) {
+                $feature_value = isset($this->pricing_rules['feature_values'][$feature]) 
+                    ? $this->pricing_rules['feature_values'][$feature] 
+                    : 0;
+                $total += $feature_value;
+                $complexity_score += $feature_value / 200;
+            }
         }
-        
-        // Apply minimum value
-        $min_value = floatval($settings['min_project_value']);
-        $total = max($subtotal, $min_value);
-        
-        // Round if enabled
-        if (!empty($settings['round_prices'])) {
-            $total = round($total / 100) * 100;
+
+        // Apply visual level multiplier
+        $visual_level = isset($responses['visual_level']) ? $responses['visual_level'] : 'basic';
+        $visual_multiplier = isset($this->pricing_rules['visual_multipliers'][$visual_level]) 
+            ? $this->pricing_rules['visual_multipliers'][$visual_level] 
+            : 1;
+        $total *= $visual_multiplier;
+        $complexity_score *= $visual_multiplier;
+
+        // Add content creation value
+        $content_status = isset($responses['content_status']) ? $responses['content_status'] : 'have_all';
+        $content_value = isset($this->pricing_rules['content_values'][$content_status]) 
+            ? $this->pricing_rules['content_values'][$content_status] 
+            : 0;
+        $total += $content_value;
+        $complexity_score += $content_value / 100;
+
+        // Apply deadline multiplier
+        $deadline = isset($responses['deadline']) ? $responses['deadline'] : '30_days';
+        $deadline_multiplier = isset($this->pricing_rules['deadline_multipliers'][$deadline]) 
+            ? $this->pricing_rules['deadline_multipliers'][$deadline] 
+            : 1;
+        $total *= $deadline_multiplier;
+
+        // Ensure minimum project value
+        $min_value = isset($this->settings['min_project_value']) ? $this->settings['min_project_value'] : 500;
+        if ($total < $min_value) {
+            $total = $min_value;
         }
-        
+
+        // Round to nearest 10
+        $total = round($total / 10) * 10;
+
+        // Calculate min and max values with margin
+        $margin_min = isset($this->settings['price_margin_min']) ? $this->settings['price_margin_min'] : 0.9;
+        $margin_max = isset($this->settings['price_margin_max']) ? $this->settings['price_margin_max'] : 1.2;
+        $min_value_calc = round($total * $margin_min);
+        $max_value_calc = round($total * $margin_max);
+
         // Determine project category
-        $category = $this->determine_category($complexity_score, $total);
-        
-        // Calculate deadline estimate
-        $deadline = $this->calculate_deadline($answers, $settings);
-        
-        // Calculate price range
-        $margin_min = floatval($settings['price_margin_min']);
-        $margin_max = floatval($settings['price_margin_max']);
-        
-        $price_min = $total * (1 - $margin_min);
-        $price_max = $total * (1 + $margin_max);
-        
+        $category = $this->get_category($complexity_score);
+
+        // Calculate deadline days
+        $deadline_days = $this->get_deadline_days($deadline, $site_type);
+
         return array(
-            'base_value' => round($base_value, 2),
-            'additional_value' => round($additional_value, 2),
-            'customization_value' => round($customization_value, 2),
-            'subtotal' => round($subtotal, 2),
-            'total' => round($total, 2),
-            'price_min' => round($price_min, 2),
-            'price_max' => round($price_max, 2),
-            'complexity_score' => $complexity_score,
+            'total' => $total,
+            'min_value' => $min_value_calc,
+            'max_value' => $max_value_calc,
             'category' => $category,
-            'deadline_days' => $deadline,
-            'currency' => $settings['currency'],
-            'currency_symbol' => $settings['currency_symbol']
+            'deadline_days' => $deadline_days,
+            'complexity_score' => round($complexity_score),
+            'breakdown' => array(
+                'base_value' => $base_value,
+                'pages_value' => $this->calculate_pages_value($responses),
+                'features_value' => $this->calculate_features_value($responses),
+                'content_value' => $content_value,
+                'visual_multiplier' => $visual_multiplier,
+                'deadline_multiplier' => $deadline_multiplier,
+            ),
         );
     }
-    
+
     /**
-     * Determine project category based on complexity and value
+     * Get option value from questions
      */
-    private function determine_category($complexity_score, $total_value) {
-        // Simple categorization logic
-        if ($complexity_score <= 5 || $total_value < 1500) {
+    private function get_option_value($question_id, $option_value, $value_key = 'value_add') {
+        $questions = WSMVP_Settings::get_instance()->get_questions();
+        
+        foreach ($questions as $question) {
+            if ($question['id'] === $question_id) {
+                foreach ($question['options'] as $option) {
+                    if ($option['value'] === $option_value) {
+                        return isset($option[$value_key]) ? $option[$value_key] : 0;
+                    }
+                }
+            }
+        }
+        
+        return 0;
+    }
+
+    /**
+     * Calculate pages total value
+     */
+    private function calculate_pages_value($responses) {
+        $total = 0;
+        if (isset($responses['pages']) && is_array($responses['pages'])) {
+            foreach ($responses['pages'] as $page) {
+                $total += isset($this->pricing_rules['page_values'][$page]) 
+                    ? $this->pricing_rules['page_values'][$page] 
+                    : 0;
+            }
+        }
+        return $total;
+    }
+
+    /**
+     * Calculate features total value
+     */
+    private function calculate_features_value($responses) {
+        $total = 0;
+        if (isset($responses['features']) && is_array($responses['features'])) {
+            foreach ($responses['features'] as $feature) {
+                $total += isset($this->pricing_rules['feature_values'][$feature]) 
+                    ? $this->pricing_rules['feature_values'][$feature] 
+                    : 0;
+            }
+        }
+        return $total;
+    }
+
+    /**
+     * Get project category based on complexity score
+     */
+    private function get_category($score) {
+        $scores = $this->pricing_rules['complexity_scores'];
+        
+        if ($score <= $scores['basic']['max']) {
             return 'basic';
-        } elseif ($complexity_score <= 12 || $total_value < 4000) {
+        } elseif ($score <= $scores['intermediate']['max']) {
             return 'intermediate';
-        } elseif ($complexity_score <= 20 || $total_value < 8000) {
+        } elseif ($score <= $scores['advanced']['max']) {
             return 'advanced';
         } else {
             return 'custom';
         }
     }
-    
+
     /**
-     * Calculate estimated deadline
+     * Get estimated deadline in days
      */
-    private function calculate_deadline($answers, $settings) {
-        $base_deadline = intval($settings['default_deadline']);
+    private function get_deadline_days($deadline, $site_type) {
+        $base_days = array(
+            'landing_page' => 7,
+            'institutional' => 15,
+            'portfolio' => 12,
+            'blog' => 18,
+            'membership' => 25,
+            'ecommerce' => 30,
+        );
         
-        // Adjust based on site type
-        if (isset($answers['site_type'])) {
-            switch ($answers['site_type']) {
-                case 'landing_page':
-                    $base_deadline = min($base_deadline, 10);
-                    break;
-                case 'ecommerce':
-                    $base_deadline = max($base_deadline, 45);
-                    break;
-                case 'membership':
-                    $base_deadline = max($base_deadline, 40);
-                    break;
-            }
-        }
+        $base = isset($base_days[$site_type]) ? $base_days[$site_type] : 20;
         
-        // Adjust based on content status
-        if (isset($answers['content_status'])) {
-            switch ($answers['content_status']) {
-                case 'have_all':
-                    $base_deadline = intval($base_deadline * 0.8);
-                    break;
-                case 'need_everything':
-                    $base_deadline = intval($base_deadline * 1.3);
-                    break;
-            }
-        }
+        $multipliers = array(
+            'no_urgency' => 1.2,
+            '30_days' => 1,
+            '15_days' => 0.7,
+            'priority' => 0.5,
+        );
         
-        // Adjust based on urgency
-        if (isset($answers['deadline'])) {
-            switch ($answers['deadline']) {
-                case 'priority':
-                    $base_deadline = intval($base_deadline * 0.5);
-                    break;
-                case '15_days':
-                    $base_deadline = min($base_deadline, 15);
-                    break;
-                case '30_days':
-                    $base_deadline = min($base_deadline, 30);
-                    break;
-            }
-        }
+        $multiplier = isset($multipliers[$deadline]) ? $multipliers[$deadline] : 1;
         
-        return max(5, $base_deadline); // Minimum 5 days
+        return round($base * $multiplier);
     }
-    
+
     /**
      * Format price for display
      */
-    public function format_price($value, $currency_symbol = 'R$') {
-        return $currency_symbol . ' ' . number_format($value, 2, ',', '.');
+    public function format_price($value) {
+        $currency_symbol = isset($this->settings['currency_symbol']) ? $this->settings['currency_symbol'] : 'R$';
+        $currency = isset($this->settings['currency']) ? $this->settings['currency'] : 'BRL';
+        
+        if ($currency === 'BRL') {
+            return $currency_symbol . ' ' . number_format($value, 2, ',', '.');
+        }
+        
+        return $currency_symbol . ' ' . number_format($value, 2);
     }
-    
+
     /**
      * Get category label
      */
     public function get_category_label($category) {
         $labels = array(
-            'basic' => __('Basic Project', 'website-simulator-mvp'),
-            'intermediate' => __('Intermediate Project', 'website-simulator-mvp'),
-            'advanced' => __('Advanced Project', 'website-simulator-mvp'),
-            'custom' => __('Custom Project', 'website-simulator-mvp')
+            'basic' => __('Projeto Básico', 'website-simulator-mvp'),
+            'intermediate' => __('Projeto Intermediário', 'website-simulator-mvp'),
+            'advanced' => __('Projeto Avançado', 'website-simulator-mvp'),
+            'custom' => __('Projeto Sob Medida', 'website-simulator-mvp'),
         );
         
-        return $labels[$category] ?? $category;
+        return isset($labels[$category]) ? $labels[$category] : $category;
     }
-    
+
     /**
-     * AJAX handler for price calculation
+     * Get site type label
      */
-    public function ajax_calculate_price() {
-        check_ajax_referer('wsmvp_frontend_nonce', 'nonce');
+    public function get_site_type_label($type) {
+        $labels = array(
+            'institutional' => __('Site Institucional', 'website-simulator-mvp'),
+            'landing_page' => __('Landing Page', 'website-simulator-mvp'),
+            'ecommerce' => __('Loja Virtual', 'website-simulator-mvp'),
+            'blog' => __('Blog', 'website-simulator-mvp'),
+            'portfolio' => __('Portfólio', 'website-simulator-mvp'),
+            'membership' => __('Área de Membros', 'website-simulator-mvp'),
+        );
         
-        $answers = isset($_POST['answers']) ? $_POST['answers'] : array();
+        return isset($labels[$type]) ? $labels[$type] : $type;
+    }
+
+    /**
+     * Get objective label
+     */
+    public function get_objective_label($objective) {
+        $labels = array(
+            'present_company' => __('Apresentar uma empresa', 'website-simulator-mvp'),
+            'generate_leads' => __('Gerar contatos', 'website-simulator-mvp'),
+            'sell_products' => __('Vender produtos', 'website-simulator-mvp'),
+            'promote_services' => __('Divulgar serviços', 'website-simulator-mvp'),
+            'create_blog' => __('Criar um blog', 'website-simulator-mvp'),
+            'landing_page' => __('Criar uma landing page', 'website-simulator-mvp'),
+        );
         
-        // Sanitize answers
-        $sanitized_answers = array();
-        foreach ($answers as $key => $value) {
-            if (is_array($value)) {
-                $sanitized_answers[$key] = array_map('sanitize_text_field', $value);
-            } else {
-                $sanitized_answers[$key] = sanitize_text_field($value);
-            }
-        }
-        
-        $result = $this->calculate($sanitized_answers);
-        
-        wp_send_json_success($result);
+        return isset($labels[$objective]) ? $labels[$objective] : $objective;
     }
 }
