@@ -1,0 +1,40 @@
+```
+# WordPress specific ignores
+*.log
+*.tmp
+*.swp
+*.bak
+*.backup
+*.sql
+wp-content/cache/
+wp-content/uploads/
+
+# Dependencies
+node_modules/
+vendor/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editor/IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.min.js
+*.min.css
+*.map
+
+# System
+*.tmp
+*.temp
+*~
+```
